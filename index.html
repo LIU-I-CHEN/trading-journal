@@ -3,66 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>交易日誌</title>
+  <title>交易筆記</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
-    header { background: #333; color: white; padding: 1rem; text-align: center; }
-    main { display: flex; height: calc(100vh - 60px); }
-    nav { width: 200px; background: #fff; border-right: 1px solid #ddd; padding: 1rem; }
-    nav ul { list-style: none; padding: 0; }
-    nav li { margin-bottom: 0.5rem; }
-    nav a { color: #333; text-decoration: none; }
-    section { flex: 1; padding: 1rem; overflow-y: auto; }
-    form { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1rem; background: white; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; }
-    form input, form select { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
-    form button { grid-column: span 2; padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; background: white; }
-    th, td { padding: 0.5rem; border: 1px solid #ddd; text-align: center; }
-    th { background: #f0f0f0; }
-    .actions button { margin: 0 0.2rem; padding: 0.3rem 0.5rem; border: none; border-radius: 3px; cursor: pointer; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+    }
+    header {
+      background: #111;
+      color: white;
+      text-align: center;
+      padding: 1.2rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    .container {
+      max-width: 860px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    form, .section, .textarea-section {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      margin-bottom: 2rem;
+    }
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+    form input, form select, form button, textarea {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: 'Inter', sans-serif;
+    }
+    form button {
+      grid-column: span 2;
+      background: #111;
+      color: white;
+      cursor: pointer;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    th, td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #eee;
+      text-align: center;
+    }
+    th {
+      background: #fafafa;
+      font-weight: 600;
+    }
+    .actions button {
+      border: none;
+      padding: 0.3rem 0.6rem;
+      margin: 0 0.2rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
     .edit { background: #ffc107; color: #fff; }
     .delete { background: #dc3545; color: #fff; }
   </style>
 </head>
 <body>
-  <header><h1>交易日誌</h1></header>
-  <main>
-    <nav>
-      <ul>
-        <li><a href="#">新增交易</a></li>
-        <li><a href="#">我的策略</a></li>
-        <li><a href="#">報表</a></li>
-      </ul>
-    </nav>
-    <section>
-      <form id="tradeForm">
-        <input type="date" id="date" required />
-        <input type="text" id="symbol" placeholder="交易品種" required />
-        <select id="side">
-          <option value="Long">多單</option>
-          <option value="Short">空單</option>
-        </select>
-        <input type="number" id="entry" placeholder="進場價" step="0.01" required />
-        <input type="number" id="exit" placeholder="出場價" step="0.01" required />
-        <input type="number" id="quantity" placeholder="數量" step="0.01" required />
-        <input type="text" id="notes" placeholder="備註" />
-        <button type="submit">新增交易</button>
-      </form>
+  <header>交易筆記</header>
+  <div class="container">
+    <form id="tradeForm">
+      <input type="date" id="date" required />
+      <input type="text" id="symbol" placeholder="交易品種" required />
+      <select id="side">
+        <option value="Long">多單</option>
+        <option value="Short">空單</option>
+      </select>
+      <input type="number" id="entry" placeholder="進場價" step="0.01" required />
+      <input type="number" id="exit" placeholder="出場價" step="0.01" required />
+      <input type="number" id="quantity" placeholder="數量" step="0.01" required />
+      <input type="text" id="notes" placeholder="備註" />
+      <button type="submit">新增交易</button>
+    </form>
+
+    <div class="section">
       <table id="tradeTable">
         <thead>
           <tr>
-            <th>日期</th><th>品種</th><th>方向</th><th>進場價</th><th>出場價</th><th>數量</th><th>盈虧</th><th>備註</th><th>操作</th>
+            <th>日期</th><th>品種</th><th>方向</th><th>進場</th><th>出場</th><th>數量</th><th>盈虧</th><th>備註</th><th>操作</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
-    </section>
-  </main>
+    </div>
+
+    <div class="textarea-section">
+      <h3>策略心得</h3>
+      <textarea id="strategyNotes" placeholder="寫下你今天策略的優劣、感想..."></textarea>
+    </div>
+
+    <div class="textarea-section">
+      <h3>交易回顧</h3>
+      <textarea id="reviewNotes" placeholder="寫下今日整體表現、自我檢討與改進方向..."></textarea>
+    </div>
+
+  </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('tradeForm');
   const tableBody = document.querySelector('#tradeTable tbody');
+  const strategyNotes = document.getElementById('strategyNotes');
+  const reviewNotes = document.getElementById('reviewNotes');
+
   let trades = JSON.parse(localStorage.getItem('trades') || '[]');
+  let strategy = localStorage.getItem('strategyNotes') || '';
+  let review = localStorage.getItem('reviewNotes') || '';
+  strategyNotes.value = strategy;
+  reviewNotes.value = review;
 
   function render() {
     tableBody.innerHTML = '';
@@ -88,6 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function save() {
     localStorage.setItem('trades', JSON.stringify(trades));
+    localStorage.setItem('strategyNotes', strategyNotes.value);
+    localStorage.setItem('reviewNotes', reviewNotes.value);
     render();
   }
 
@@ -125,6 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
       save();
     }
   });
+
+  strategyNotes.addEventListener('input', save);
+  reviewNotes.addEventListener('input', save);
 
   render();
 });
