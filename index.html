@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>交易筆記</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -24,7 +25,7 @@
       margin: 2rem auto;
       padding: 0 1rem;
     }
-    form, .section, .textarea-section {
+    form, .section, .textarea-section, .summary-export {
       background: white;
       padding: 1rem;
       border-radius: 8px;
@@ -42,11 +43,14 @@
       border-radius: 4px;
       font-family: 'Inter', sans-serif;
     }
-    form button {
-      grid-column: span 2;
+    form button, .summary-export button, .textarea-section button {
       background: #111;
       color: white;
       cursor: pointer;
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
     }
     textarea {
       width: 100%;
@@ -79,6 +83,7 @@
     }
     .edit { background: #ffc107; color: #fff; }
     .delete { background: #dc3545; color: #fff; }
+    canvas { width: 100% !important; max-height: 300px; margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -109,34 +114,63 @@
       </table>
     </div>
 
+    <div class="section">
+      <canvas id="profitChart"></canvas>
+    </div>
+
+    <div class="summary-export">
+      <h4>累計損益：<span id="totalProfit">0</span></h4>
+      <button onclick="exportToCSV()">匯出交易紀錄 (CSV)</button>
+    </div>
+
     <div class="textarea-section">
-      <h3>策略心得</h3>
+      <input type="date" id="noteDate" style="margin-bottom: 0.5rem;">
+      <h3>策略心得（日記式）</h3>
       <textarea id="strategyNotes" placeholder="寫下你今天策略的優劣、感想..."></textarea>
-    </div>
-
-    <div class="textarea-section">
-      <h3>交易回顧</h3>
+      <h3 style="margin-top:2rem">交易回顧（日記式）</h3>
       <textarea id="reviewNotes" placeholder="寫下今日整體表現、自我檢討與改進方向..."></textarea>
+      <button onclick="exportNotesToText()">匯出筆記內容</button>
     </div>
-
   </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('tradeForm');
   const tableBody = document.querySelector('#tradeTable tbody');
   const strategyNotes = document.getElementById('strategyNotes');
   const reviewNotes = document.getElementById('reviewNotes');
+  const noteDateInput = document.getElementById('noteDate');
+  const totalProfitEl = document.getElementById('totalProfit');
+
+  const today = new Date().toISOString().split('T')[0];
+  noteDateInput.value = today;
 
   let trades = JSON.parse(localStorage.getItem('trades') || '[]');
-  let strategy = localStorage.getItem('strategyNotes') || '';
-  let review = localStorage.getItem('reviewNotes') || '';
-  strategyNotes.value = strategy;
-  reviewNotes.value = review;
+  let strategyMap = JSON.parse(localStorage.getItem('strategyNotesMap') || '{}');
+  let reviewMap = JSON.parse(localStorage.getItem('reviewNotesMap') || '{}');
+
+  function loadNotesByDate(dateStr) {
+    strategyNotes.value = strategyMap[dateStr] || '';
+    reviewNotes.value = reviewMap[dateStr] || '';
+  }
+
+  function saveNotes() {
+    strategyMap[noteDateInput.value] = strategyNotes.value;
+    reviewMap[noteDateInput.value] = reviewNotes.value;
+    localStorage.setItem('strategyNotesMap', JSON.stringify(strategyMap));
+    localStorage.setItem('reviewNotesMap', JSON.stringify(reviewMap));
+  }
+
+  noteDateInput.addEventListener('change', () => loadNotesByDate(noteDateInput.value));
+  strategyNotes.addEventListener('input', saveNotes);
+  reviewNotes.addEventListener('input', saveNotes);
 
   function render() {
     tableBody.innerHTML = '';
+    let total = 0;
     trades.forEach((t, i) => {
       const profit = ((t.side === 'Long' ? t.exit - t.entry : t.entry - t.exit) * t.quantity).toFixed(2);
+      total += parseFloat(profit);
       const row = document.createElement('tr');
       row.innerHTML = `
         <td>${t.date}</td>
@@ -153,13 +187,65 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>`;
       tableBody.appendChild(row);
     });
+    totalProfitEl.textContent = total.toFixed(2);
   }
 
-  function save() {
-    localStorage.setItem('trades', JSON.stringify(trades));
-    localStorage.setItem('strategyNotes', strategyNotes.value);
-    localStorage.setItem('reviewNotes', reviewNotes.value);
-    render();
+  function renderChart() {
+    const ctx = document.getElementById('profitChart').getContext('2d');
+    const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+    const labels = sorted.map(t => t.date);
+    const data = sorted.map(t => ((t.side === 'Long' ? t.exit - t.entry : t.entry - t.exit) * t.quantity));
+    if (window.tradeChart) window.tradeChart.destroy();
+    window.tradeChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: '每日盈虧',
+          data,
+          fill: false,
+          borderColor: 'green',
+          tension: 0.2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+
+  function exportToCSV() {
+    let csv = '日期,品種,方向,進場,出場,數量,盈虧,備註\n';
+    trades.forEach(t => {
+      const profit = ((t.side === 'Long' ? t.exit - t.entry : t.entry - t.exit) * t.quantity).toFixed(2);
+      csv += `${t.date},${t.symbol},${t.side},${t.entry},${t.exit},${t.quantity},${profit},${t.notes}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'trading_journal.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportNotesToText() {
+    let content = '';
+    for (const date in strategyMap) {
+      content += `【${date} 策略心得】\n${strategyMap[date]}\n\n`;
+    }
+    for (const date in reviewMap) {
+      content += `【${date} 交易回顧】\n${reviewMap[date]}\n\n`;
+    }
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'trading_notes.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   form.addEventListener('submit', e => {
@@ -174,14 +260,18 @@ document.addEventListener('DOMContentLoaded', () => {
       notes: form.notes.value
     };
     trades.push(newTrade);
-    save();
+    localStorage.setItem('trades', JSON.stringify(trades));
+    render();
+    renderChart();
     form.reset();
   });
 
   tableBody.addEventListener('click', e => {
     if (e.target.classList.contains('delete')) {
       trades.splice(e.target.dataset.index, 1);
-      save();
+      localStorage.setItem('trades', JSON.stringify(trades));
+      render();
+      renderChart();
     } else if (e.target.classList.contains('edit')) {
       const idx = e.target.dataset.index;
       const t = trades[idx];
@@ -193,14 +283,15 @@ document.addEventListener('DOMContentLoaded', () => {
       form.quantity.value = t.quantity;
       form.notes.value = t.notes;
       trades.splice(idx, 1);
-      save();
+      localStorage.setItem('trades', JSON.stringify(trades));
+      render();
+      renderChart();
     }
   });
 
-  strategyNotes.addEventListener('input', save);
-  reviewNotes.addEventListener('input', save);
-
+  loadNotesByDate(today);
   render();
+  renderChart();
 });
 </script>
 </body>
