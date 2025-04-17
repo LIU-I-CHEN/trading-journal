@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>交易日誌</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+    header { background: #333; color: white; padding: 1rem; text-align: center; }
+    main { display: flex; height: calc(100vh - 60px); }
+    nav { width: 200px; background: #fff; border-right: 1px solid #ddd; padding: 1rem; }
+    nav ul { list-style: none; padding: 0; }
+    nav li { margin-bottom: 0.5rem; }
+    nav a { color: #333; text-decoration: none; }
+    section { flex: 1; padding: 1rem; overflow-y: auto; }
+    form { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1rem; background: white; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; }
+    form input, form select { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+    form button { grid-column: span 2; padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { padding: 0.5rem; border: 1px solid #ddd; text-align: center; }
+    th { background: #f0f0f0; }
+    .actions button { margin: 0 0.2rem; padding: 0.3rem 0.5rem; border: none; border-radius: 3px; cursor: pointer; }
+    .edit { background: #ffc107; color: #fff; }
+    .delete { background: #dc3545; color: #fff; }
+  </style>
+</head>
+<body>
+  <header><h1>交易日誌</h1></header>
+  <main>
+    <nav>
+      <ul>
+        <li><a href="#">新增交易</a></li>
+        <li><a href="#">我的策略</a></li>
+        <li><a href="#">報表</a></li>
+      </ul>
+    </nav>
+    <section>
+      <form id="tradeForm">
+        <input type="date" id="date" required />
+        <input type="text" id="symbol" placeholder="交易品種" required />
+        <select id="side">
+          <option value="Long">多單</option>
+          <option value="Short">空單</option>
+        </select>
+        <input type="number" id="entry" placeholder="進場價" step="0.01" required />
+        <input type="number" id="exit" placeholder="出場價" step="0.01" required />
+        <input type="number" id="quantity" placeholder="數量" step="0.01" required />
+        <input type="text" id="notes" placeholder="備註" />
+        <button type="submit">新增交易</button>
+      </form>
+      <table id="tradeTable">
+        <thead>
+          <tr>
+            <th>日期</th><th>品種</th><th>方向</th><th>進場價</th><th>出場價</th><th>數量</th><th>盈虧</th><th>備註</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('tradeForm');
+  const tableBody = document.querySelector('#tradeTable tbody');
+  let trades = JSON.parse(localStorage.getItem('trades') || '[]');
+
+  function render() {
+    tableBody.innerHTML = '';
+    trades.forEach((t, i) => {
+      const profit = ((t.side === 'Long' ? t.exit - t.entry : t.entry - t.exit) * t.quantity).toFixed(2);
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${t.date}</td>
+        <td>${t.symbol}</td>
+        <td>${t.side}</td>
+        <td>${t.entry}</td>
+        <td>${t.exit}</td>
+        <td>${t.quantity}</td>
+        <td>${profit}</td>
+        <td>${t.notes}</td>
+        <td class="actions">
+          <button class="edit" data-index="${i}">編輯</button>
+          <button class="delete" data-index="${i}">刪除</button>
+        </td>`;
+      tableBody.appendChild(row);
+    });
+  }
+
+  function save() {
+    localStorage.setItem('trades', JSON.stringify(trades));
+    render();
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const newTrade = {
+      date: form.date.value,
+      symbol: form.symbol.value,
+      side: form.side.value,
+      entry: parseFloat(form.entry.value),
+      exit: parseFloat(form.exit.value),
+      quantity: parseFloat(form.quantity.value),
+      notes: form.notes.value
+    };
+    trades.push(newTrade);
+    save();
+    form.reset();
+  });
+
+  tableBody.addEventListener('click', e => {
+    if (e.target.classList.contains('delete')) {
+      trades.splice(e.target.dataset.index, 1);
+      save();
+    } else if (e.target.classList.contains('edit')) {
+      const idx = e.target.dataset.index;
+      const t = trades[idx];
+      form.date.value = t.date;
+      form.symbol.value = t.symbol;
+      form.side.value = t.side;
+      form.entry.value = t.entry;
+      form.exit.value = t.exit;
+      form.quantity.value = t.quantity;
+      form.notes.value = t.notes;
+      trades.splice(idx, 1);
+      save();
+    }
+  });
+
+  render();
+});
+</script>
+</body>
+</html>
